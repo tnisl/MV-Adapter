@@ -815,10 +815,38 @@ class MVAdapterI2MVSDXLPipeline(StableDiffusionXLPipeline, CustomAdapterMixin):
                     )
 
                 # compute the previous noisy sample x_t -> x_t-1
+
+                ### testing
+                unet_device = self.unet.device  # cuda:1
                 latents_dtype = latents.dtype
-                latents = self.scheduler.step(
-                    noise_pred, t, latents, **extra_step_kwargs, return_dict=False
+                
+                # Ép toàn bộ nguyên liệu của scheduler lên cuda:1 để tính toán tập trung
+                latents_cuda1 = latents.to(unet_device)
+                t_cuda1 = t.to(unet_device)
+                
+                # Đồng bộ các tham số phụ trợ trong extra_step_kwargs nếu có tensor
+                extra_kwargs_cuda1 = {}
+                for k, v in extra_step_kwargs.items():
+                    extra_kwargs_cuda1[k] = v.to(unet_device) if isinstance(v, torch.Tensor) else v
+
+                # Chạy Scheduler mượt mà trên cuda:1 mà không sợ lệch thiết bị
+                latents_step_output = self.scheduler.step(
+                    noise_pred, 
+                    t_cuda1, 
+                    latents_cuda1, 
+                    **extra_kwargs_cuda1, 
+                    return_dict=False
                 )[0]
+                
+                latents = latents_step_output.to(self.device) # self.device chính là cuda:0
+                ### testing
+
+                #latents_dtype = latents.dtype
+                #latents = self.scheduler.step(
+                #    noise_pred, t, latents, **extra_step_kwargs, return_dict=False
+                #)[0]
+
+
                 if latents.dtype != latents_dtype:
                     if torch.backends.mps.is_available():
                         # some platforms (eg. apple mps) misbehave due to a pytorch bug: https://github.com/pytorch/pytorch/pull/99272
