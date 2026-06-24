@@ -323,7 +323,9 @@ class DecoupledMVRowSelfAttnProcessor2_0(torch.nn.Module):
             hidden_states_mv = self.to_out_mv[1](hidden_states_mv)
 
         if use_ref:
-            reference_hidden_states = ref_hidden_states[self.name]
+            current_device = self.to_k_ref.weight.device
+            reference_hidden_states = ref_hidden_states[self.name].to(current_device)
+            #reference_hidden_states = ref_hidden_states[self.name]
 
             key_ref = self.to_k_ref(reference_hidden_states)
             value_ref = self.to_v_ref(reference_hidden_states)
@@ -689,7 +691,9 @@ class DecoupledMVRowColSelfAttnProcessor2_0(torch.nn.Module):
             hidden_states_mv = self.to_out_mv[1](hidden_states_mv)
 
         if use_ref:
-            reference_hidden_states = ref_hidden_states[self.name]
+            current_device = self.to_k_ref.weight.device
+            reference_hidden_states = ref_hidden_states[self.name].to(current_device)
+            #reference_hidden_states = ref_hidden_states[self.name]
 
             key_ref = self.to_k_ref(reference_hidden_states)
             value_ref = self.to_v_ref(reference_hidden_states)
