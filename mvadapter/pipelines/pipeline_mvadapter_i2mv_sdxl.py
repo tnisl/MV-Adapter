@@ -620,22 +620,18 @@ class MVAdapterI2MVSDXLPipeline(StableDiffusionXLPipeline, CustomAdapterMixin):
         )
 
         ### testing
-        unet_device = self.unet.device  
-        ref_timesteps = torch.zeros_like(timesteps[0]).to(unet_device)
-        reference_latents = reference_latents.to(unet_device)
-        ### testing
-
+        unet_device = self.unet.device
         with torch.no_grad():
-            #ref_timesteps = torch.zeros_like(timesteps[0])
+            ref_timesteps = torch.zeros_like(timesteps[0]).to(unet_device)
             ref_hidden_states = {}
 
             self.unet(
-                reference_latents,
+                reference_latents.to(unet_device),
                 ref_timesteps,
-                encoder_hidden_states=prompt_embeds[-1:],
+                encoder_hidden_states=prompt_embeds[-1:].to(unet_device),
                 added_cond_kwargs={
-                    "text_embeds": add_text_embeds[-1:],
-                    "time_ids": add_time_ids[-1:],
+                    "text_embeds": add_text_embeds[-1:].to(unet_device),
+                    "time_ids": add_time_ids[-1:].to(unet_device),
                 },
                 cross_attention_kwargs={
                     "cache_hidden_states": ref_hidden_states,
@@ -644,6 +640,7 @@ class MVAdapterI2MVSDXLPipeline(StableDiffusionXLPipeline, CustomAdapterMixin):
                 },
                 return_dict=False,
             )
+        ### testing
 
 
 
@@ -749,9 +746,9 @@ class MVAdapterI2MVSDXLPipeline(StableDiffusionXLPipeline, CustomAdapterMixin):
                     down_intrablock_additional_residuals = None
 
                 ###testing
-                unet_device = self.unet.device  # Sẽ trả về cuda:1
+                unet_device = self.unet.device
                 
-                # 1. Ép kiểu các cấu phần chính
+                # Ép các biến lõi sang cuda:1
                 latent_model_input = latent_model_input.to(unet_device)
                 t = t.to(unet_device)
                 prompt_embeds = prompt_embeds.to(unet_device)
@@ -759,17 +756,15 @@ class MVAdapterI2MVSDXLPipeline(StableDiffusionXLPipeline, CustomAdapterMixin):
                 if timestep_cond is not None:
                     timestep_cond = timestep_cond.to(unet_device)
 
-                # 2. Ép trực tiếp 2 biến nguồn của Micro-conditioning lên cuda:1
-                if 'add_text_embeds' in locals() or 'add_text_embeds' in globals():
-                    add_text_embeds = add_text_embeds.to(unet_device)
-                if 'add_time_ids' in locals() or 'add_time_ids' in globals():
-                    add_time_ids = add_time_ids.to(unet_device)
+                # Ép trực tiếp text_embeds và time_ids gốc sang cuda:1 trước khi đóng gói
+                current_text_embeds = add_text_embeds.to(unet_device)
+                current_time_ids = add_time_ids.to(unet_device)
 
-                # 3. Ép kiểu dictionary điều kiện bổ sung
                 added_cond_kwargs = {
-                    "text_embeds": add_text_embeds,
-                    "time_ids": add_time_ids,
+                    "text_embeds": current_text_embeds,
+                    "time_ids": current_time_ids,
                 }
+                
                 if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
                     added_cond_kwargs["image_embeds"] = image_embeds.to(unet_device)
 
