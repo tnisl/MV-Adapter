@@ -619,8 +619,14 @@ class MVAdapterI2MVSDXLPipeline(StableDiffusionXLPipeline, CustomAdapterMixin):
             add_noise=False,
         )
 
+        ### testing
+        unet_device = self.unet.device  
+        ref_timesteps = torch.zeros_like(timesteps[0]).to(unet_device)
+        reference_latents = reference_latents.to(unet_device)
+        ### testing
+
         with torch.no_grad():
-            ref_timesteps = torch.zeros_like(timesteps[0])
+            #ref_timesteps = torch.zeros_like(timesteps[0])
             ref_hidden_states = {}
 
             self.unet(
@@ -638,6 +644,9 @@ class MVAdapterI2MVSDXLPipeline(StableDiffusionXLPipeline, CustomAdapterMixin):
                 },
                 return_dict=False,
             )
+
+
+
             ref_hidden_states = {
                 k: v.repeat_interleave(num_images_per_prompt, dim=0)
                 for k, v in ref_hidden_states.items()
@@ -738,6 +747,32 @@ class MVAdapterI2MVSDXLPipeline(StableDiffusionXLPipeline, CustomAdapterMixin):
                     ]
                 else:
                     down_intrablock_additional_residuals = None
+
+                ###testing
+                unet_device = self.unet.device
+                latent_model_input = latent_model_input.to(unet_device)
+                t = t.to(unet_device)
+                prompt_embeds = prompt_embeds.to(unet_device)
+                
+                if timestep_cond is not None:
+                    timestep_cond = timestep_cond.to(unet_device)
+                
+                if down_intrablock_additional_residuals is not None:
+                    down_intrablock_additional_residuals = [
+                        res.to(unet_device) for res in down_intrablock_additional_residuals
+                    ]
+                
+                if added_cond_kwargs is not None:
+                    new_added_cond = {}
+                    for k, v in added_cond_kwargs.items():
+                        if isinstance(v, torch.Tensor):
+                            new_added_cond[k] = v.to(unet_device)
+                        elif isinstance(v, dict):
+                            new_added_cond[k] = {nk: nv.to(unet_device) if isinstance(nv, torch.Tensor) else nv for nk, nv in v.items()}
+                        else:
+                            new_added_cond[k] = v
+                    added_cond_kwargs = new_added_cond
+                ###testing
 
                 # predict the noise residual
                 noise_pred = self.unet(
