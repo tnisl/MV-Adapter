@@ -749,29 +749,36 @@ class MVAdapterI2MVSDXLPipeline(StableDiffusionXLPipeline, CustomAdapterMixin):
                     down_intrablock_additional_residuals = None
 
                 ###testing
-                unet_device = self.unet.device
+                unet_device = self.unet.device  # Sẽ trả về cuda:1
+                
+                # 1. Ép kiểu các cấu phần chính
                 latent_model_input = latent_model_input.to(unet_device)
                 t = t.to(unet_device)
                 prompt_embeds = prompt_embeds.to(unet_device)
-                
+
                 if timestep_cond is not None:
                     timestep_cond = timestep_cond.to(unet_device)
-                
-                if down_intrablock_additional_residuals is not None:
+
+                # 2. Ép trực tiếp 2 biến nguồn của Micro-conditioning lên cuda:1
+                if 'add_text_embeds' in locals() or 'add_text_embeds' in globals():
+                    add_text_embeds = add_text_embeds.to(unet_device)
+                if 'add_time_ids' in locals() or 'add_time_ids' in globals():
+                    add_time_ids = add_time_ids.to(unet_device)
+
+                # 3. Ép kiểu dictionary điều kiện bổ sung
+                added_cond_kwargs = {
+                    "text_embeds": add_text_embeds,
+                    "time_ids": add_time_ids,
+                }
+                if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
+                    added_cond_kwargs["image_embeds"] = image_embeds.to(unet_device)
+
+                if i < int(num_inference_steps * control_conditioning_factor):
                     down_intrablock_additional_residuals = [
-                        res.to(unet_device) for res in down_intrablock_additional_residuals
+                        state.clone().to(unet_device) for state in adapter_state
                     ]
-                
-                if added_cond_kwargs is not None:
-                    new_added_cond = {}
-                    for k, v in added_cond_kwargs.items():
-                        if isinstance(v, torch.Tensor):
-                            new_added_cond[k] = v.to(unet_device)
-                        elif isinstance(v, dict):
-                            new_added_cond[k] = {nk: nv.to(unet_device) if isinstance(nv, torch.Tensor) else nv for nk, nv in v.items()}
-                        else:
-                            new_added_cond[k] = v
-                    added_cond_kwargs = new_added_cond
+                else:
+                    down_intrablock_additional_residuals = None
                 ###testing
 
                 # predict the noise residual
