@@ -673,9 +673,20 @@ class MVAdapterI2MVSDXLPipeline(StableDiffusionXLPipeline, CustomAdapterMixin):
             dtype=latents.dtype,
             do_classifier_free_guidance=self.do_classifier_free_guidance,
         )
+
+
+        ### testing
+        adapter_device = self.cond_encoder.adapter.conv_in.weight.device
+        
         control_image_feature = control_image_feature.to(
-            device=device, dtype=latents.dtype
+            device=adapter_device, dtype=latents.dtype
         )
+        ### testing
+
+
+        #control_image_feature = control_image_feature.to(
+        #    device=device, dtype=latents.dtype
+        #)
 
         adapter_state = self.cond_encoder(control_image_feature)
         for i, state in enumerate(adapter_state):
